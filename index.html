@@ -646,21 +646,27 @@
             } catch (e) { hideLoading(); }
         }
 
-        function bindKeyEvents() {
-            document.getElementById('staffBarcodeInput').addEventListener('keypress', e => {
-                if (e.key === 'Enter') {
-                    if (document.getElementById('continuousMode').checked) {
-                        handleAddStaffItem();
-                    } else {
-                        document.getElementById('staffQtyInput').focus();
-                        document.getElementById('staffQtyInput').select();
-                    }
-                }
-            });
-            document.getElementById('staffQtyInput').addEventListener('keypress', e => {
-                if (e.key === 'Enter') handleAddStaffItem();
-            });
+function bindKeyEvents() {
+    document.getElementById('staffBarcodeInput').addEventListener('keypress', e => {
+        if (e.key === 'Enter') {
+            // FIX #1: rung ngay khi NHẬP TAY xong mã vào ô Mã Vạch/Mã Hàng (áp dụng cho gõ tay
+            // hoặc súng quét mã kiểu bàn phím - loại này gửi phím Enter sau khi bắn mã).
+            // Không áp dụng cho luồng camera vì camera set giá trị trực tiếp, không bắn phím Enter.
+            // Thời gian rung = gấp đôi mức 50ms hiện tại của lúc ghi vào bảng => 100ms.
+            if (navigator.vibrate) navigator.vibrate(100);
+
+            if (document.getElementById('continuousMode').checked) {
+                handleAddStaffItem();
+            } else {
+                document.getElementById('staffQtyInput').focus();
+                document.getElementById('staffQtyInput').select();
+            }
         }
+    });
+    document.getElementById('staffQtyInput').addEventListener('keypress', e => {
+        if (e.key === 'Enter') handleAddStaffItem();
+    });
+}
 
         // FIX: thêm tham số skipFeedback - khi được gọi ngay sau lúc camera vừa quét xong (đã bíp/rung
         // tại thời điểm quét rồi) thì không phát lại bíp/rung ở đây nữa, tránh kêu/rung 2 lần liên tiếp.
@@ -700,29 +706,24 @@
         }
 
         // RENDER VÀ CHO PHÉP SỬA TRỰC TIẾP TRÊN BẢNG NHÂN VIÊN
-        function renderLiveTable() {
-            const tbody = document.getElementById('liveTableBody');
-            tbody.innerHTML = "";
-            const total = STAFF_LIVE_ITEMS.length;
-            STAFF_LIVE_ITEMS.forEach((it, idx) => {
-                const row = tbody.insertRow();
-                // FIX: STT đánh số theo thứ tự NHẬP THỰC TẾ - dòng nhập đầu tiên = 1, nằm dưới cùng bảng;
-                // dòng vừa quét mới nhất = số lớn nhất, nằm trên cùng bảng (vì mảng dùng unshift() để mã mới
-                // luôn chèn lên đầu mảng). STT hiển thị = (tổng số dòng - vị trí trong mảng).
-                const stt = total - idx;
-                // FIX: đổi ô Mã Hàng / Tên Hàng từ <input> (chỉ hiện 1 dòng) sang <textarea rows="2">
-                // để cho phép xuống dòng, hiển thị đầy đủ nội dung dài trong tối đa 2 dòng, cỡ chữ nhỏ lại.
-                row.innerHTML = `
-                    <td style="text-align:center;">${stt}</td>
-                    <td><textarea class="form-control" rows="2" style="padding:4px; font-size:11px; line-height:1.25; resize:none; white-space:normal; word-break:break-word;" onchange="handleStaffEditCode(${idx}, this.value)">${it.maHang}</textarea></td>
-                    <td><textarea class="form-control" rows="2" style="padding:4px; font-size:11px; line-height:1.25; resize:none; white-space:normal; word-break:break-word; ${it.tenHang.startsWith('#NA')?'color:var(--danger);':''}" onchange="handleStaffEditName(${idx}, this.value)">${it.tenHang}</textarea></td>
-                    <td><input type="text" class="form-control" style="padding:4px; width:50px;" value="${it.dvt}" onchange="STAFF_LIVE_ITEMS[${idx}].dvt=this.value"></td>
-                    <td><input type="number" class="form-control" style="padding:4px; width:65px; font-weight:bold; color:var(--danger);" value="${it.sl}" onchange="STAFF_LIVE_ITEMS[${idx}].sl=parseFloat(this.value)||0"></td>
-                    <td><i class="fa-solid fa-trash" style="color:var(--danger);cursor:pointer;" onclick="STAFF_LIVE_ITEMS.splice(${idx},1);renderLiveTable();"></i></td>
-                `;
-            });
-            document.getElementById('liveRowCount').innerText = STAFF_LIVE_ITEMS.length;
-        }
+function renderLiveTable() {
+    const tbody = document.getElementById('liveTableBody');
+    tbody.innerHTML = "";
+    const total = STAFF_LIVE_ITEMS.length;
+    STAFF_LIVE_ITEMS.forEach((it, idx) => {
+        const row = tbody.insertRow();
+        const stt = total - idx;
+        row.innerHTML = `
+            <td style="text-align:center; font-size:11px;">${stt}</td>
+            <td><textarea class="form-control" rows="2" style="padding:4px; font-size:11px; line-height:1.25; resize:none; white-space:normal; word-break:break-word;" onchange="handleStaffEditCode(${idx}, this.value)">${it.maHang}</textarea></td>
+            <td><textarea class="form-control" rows="2" style="padding:4px; font-size:11px; line-height:1.25; resize:none; white-space:normal; word-break:break-word; ${it.tenHang.startsWith('#NA')?'color:var(--danger);':''}" onchange="handleStaffEditName(${idx}, this.value)">${it.tenHang}</textarea></td>
+            <td><input type="text" class="form-control" style="padding:4px; width:50px; font-size:11px;" value="${it.dvt}" onchange="STAFF_LIVE_ITEMS[${idx}].dvt=this.value"></td>
+            <td><input type="number" class="form-control" style="padding:4px; width:65px; font-size:11px; font-weight:bold; color:var(--danger);" value="${it.sl}" onchange="STAFF_LIVE_ITEMS[${idx}].sl=parseFloat(this.value)||0"></td>
+            <td><i class="fa-solid fa-trash" style="color:var(--danger);cursor:pointer;" onclick="STAFF_LIVE_ITEMS.splice(${idx},1);renderLiveTable();"></i></td>
+        `;
+    });
+    document.getElementById('liveRowCount').innerText = STAFF_LIVE_ITEMS.length;
+}
 
         function handleStaffEditCode(idx, newCode) {
             const code = newCode.trim();
@@ -1348,59 +1349,61 @@
         // FIX: cờ đánh dấu đã bật torch hay chưa, dùng cho toggleTorch()
         let TORCH_ON = false;
 
-        function startScanner() {
-            const zone = document.getElementById('staffZoneInput').value.trim();
-            if (!zone) {
-                showToast("⚠️ Nhập Mã Vùng trước khi mở camera!");
-                document.getElementById('staffZoneInput').focus();
-                return;
-            }
+// FIX #2: chống camera "dội" nhiều mã liên tiếp trong tích tắc (quét 1 phát mà nhận 4-5 mã).
+let LAST_SCAN_ACCEPTED_AT = 0;
+const SCAN_COOLDOWN_MS = 2000;
 
-            // Mở khoá âm thanh NGAY TẠI ĐÂY vì startScanner() được gọi trực tiếp từ onclick nút
-            // "Mở Camera" - đây chính là thao tác chạm hợp lệ để trình duyệt cho phép phát âm thanh.
-            ensureAudioUnlocked();
+function startScanner() {
+    const zone = document.getElementById('staffZoneInput').value.trim();
+    if (!zone) {
+        showToast("⚠️ Nhập Mã Vùng trước khi mở camera!");
+        document.getElementById('staffZoneInput').focus();
+        return;
+    }
 
-            document.getElementById('scannerWrapper').style.display = 'block';
-            document.getElementById('btnCamText').innerText = "Tắt Camera";
-            html5QrCode = new Html5Qrcode("qr-reader");
-            TORCH_ON = false;
+    document.getElementById('scannerWrapper').style.display = 'block';
+    document.getElementById('btnCamText').innerText = "Tắt Camera";
+    html5QrCode = new Html5Qrcode("qr-reader");
+    TORCH_ON = false;
+    LAST_SCAN_ACCEPTED_AT = 0; // reset mỗi lần mở camera mới
 
-            const config = {
-                fps: 15,
-                qrbox: { width: 280, height: 120 },
-                formatsToSupport: [
-                    Html5QrcodeSupportedFormats.EAN_13,
-                    Html5QrcodeSupportedFormats.EAN_8,
-                    Html5QrcodeSupportedFormats.CODE_128,
-                    Html5QrcodeSupportedFormats.CODE_39,
-                    Html5QrcodeSupportedFormats.UPC_A,
-                    Html5QrcodeSupportedFormats.UPC_E
-                ]
-            };
+    const config = {
+        fps: 15,
+        qrbox: { width: 280, height: 120 },
+        formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E
+        ]
+    };
 
-            html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
-                document.getElementById('staffBarcodeInput').value = decodedText;
+    html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
+        // FIX #2: chưa đủ 2 giây kể từ lần quét được chấp nhận trước đó -> bỏ qua luôn
+        const now = Date.now();
+        if (now - LAST_SCAN_ACCEPTED_AT < SCAN_COOLDOWN_MS) return;
+        LAST_SCAN_ACCEPTED_AT = now;
 
-                // FIX: BÍP + RUNG NGAY TẠI THỜI ĐIỂM CAMERA QUÉT ĐƯỢC MÃ, không đợi đến lúc
-                // thêm vào bảng. Kiểm tra luôn mã vừa quét có khớp với danh mục đã tải về (LOCAL_CATALOG)
-                // hay không để phát đúng loại tín hiệu (thành công / lỗi - hàng ngoài danh mục).
-                const code = decodedText.trim();
-                const foundInCatalog = LOCAL_CATALOG.get(code) || LOCAL_CATALOG.get(code.toLowerCase());
-                playFeedback(foundInCatalog ? 'success' : 'error');
+        document.getElementById('staffBarcodeInput').value = decodedText;
 
-                if (document.getElementById('continuousMode').checked) {
-                    // Đã phát tín hiệu ở trên rồi -> truyền skipFeedback=true để không bíp/rung lần 2
-                    handleAddStaffItem(true);
-                } else {
-                    stopScanner();
-                    document.getElementById('staffQtyInput').focus();
-                    document.getElementById('staffQtyInput').select();
-                }
-            }).catch((err) => {
-                console.error("Lỗi khởi động camera:", err);
-                showToast("Không bật được camera (Yêu cầu kết nối HTTPS/GitHub Pages)!");
-            });
+        const code = decodedText.trim();
+        const foundInCatalog = LOCAL_CATALOG.get(code) || LOCAL_CATALOG.get(code.toLowerCase());
+        playFeedback(foundInCatalog ? 'success' : 'error');
+
+        if (document.getElementById('continuousMode').checked) {
+            handleAddStaffItem(true);
+        } else {
+            stopScanner();
+            document.getElementById('staffQtyInput').focus();
+            document.getElementById('staffQtyInput').select();
         }
+    }).catch((err) => {
+        console.error("Lỗi khởi động camera:", err);
+        showToast("Không bật được camera (Yêu cầu kết nối HTTPS/GitHub Pages)!");
+    });
+}
 
         function stopScanner() {
             if (html5QrCode) {
@@ -1449,8 +1452,8 @@
 
         function playFeedback(type) {
             if (type === 'success') {
-                beepOnce(1200, 0.08, 0.1);              // bíp 80ms
-                if (navigator.vibrate) navigator.vibrate(50); // rung 50ms
+                beepOnce(1200, 0.1, 0.1);              // bíp 100ms
+                if (navigator.vibrate) navigator.vibrate(100); // rung 100ms
             } else {
                 if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // giữ nguyên rung ngắt quãng
                 // bíp 3 lần, giãn cách 150ms cho rõ nhịp cảnh báo
