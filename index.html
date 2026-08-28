@@ -665,6 +665,9 @@
         // FIX: thêm tham số skipFeedback - khi được gọi ngay sau lúc camera vừa quét xong (đã bíp/rung
         // tại thời điểm quét rồi) thì không phát lại bíp/rung ở đây nữa, tránh kêu/rung 2 lần liên tiếp.
         function handleAddStaffItem(skipFeedback) {
+            // Mở khoá audio phòng trường hợp người dùng bấm "Thêm Vào Bảng" / Enter thủ công
+            // (gõ tay hoặc dùng súng quét mã dạng bàn phím) mà chưa từng bấm "Mở Camera" trước đó.
+            if (!skipFeedback) ensureAudioUnlocked();
             const zone = document.getElementById('staffZoneInput').value.trim();
             if (!zone) {
                 showToast("⚠️ Vui lòng nhập KHU VỰC / MÃ VÙNG trước khi quét!");
@@ -1323,6 +1326,23 @@
             else { startScanner(); }
         }
 
+        // FIX LỖI 1 (mất tiếng bíp): Chrome/Safari trên điện thoại CHẶN AudioContext nếu nó
+        // không được tạo/resume trực tiếp trong một thao tác chạm (click/tap) thật của người dùng.
+        // Callback quét mã của camera KHÔNG được tính là "thao tác chạm" (nó chạy ngầm theo từng khung
+        // hình video), nên nếu tạo `new AudioContext()` bên trong đó, trình duyệt sẽ luôn ở trạng thái
+        // "suspended" -> không phát được tiếng dù không báo lỗi gì (đây là lý do rung vẫn chạy nhưng im tiếng).
+        // Cách sửa: tạo DUY NHẤT 1 AudioContext dùng chung, khởi tạo/resume ngay trong hàm được gọi
+        // trực tiếp từ sự kiện click (bấm "Mở Camera", bấm "Thêm Vào Bảng"...), rồi tái sử dụng cho mọi
+        // tiếng bíp về sau kể cả khi bíp đó được kích hoạt từ callback quét camera.
+        let SHARED_AUDIO_CTX = null;
+        function ensureAudioUnlocked() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!SHARED_AUDIO_CTX) SHARED_AUDIO_CTX = new AudioCtx();
+                if (SHARED_AUDIO_CTX.state === 'suspended') SHARED_AUDIO_CTX.resume();
+            } catch (e) {}
+        }
+
         // FIX: cờ đánh dấu đã bật torch hay chưa, dùng cho toggleTorch()
         let TORCH_ON = false;
 
@@ -1333,6 +1353,10 @@
                 document.getElementById('staffZoneInput').focus();
                 return;
             }
+
+            // Mở khoá âm thanh NGAY TẠI ĐÂY vì startScanner() được gọi trực tiếp từ onclick nút
+            // "Mở Camera" - đây chính là thao tác chạm hợp lệ để trình duyệt cho phép phát âm thanh.
+            ensureAudioUnlocked();
 
             document.getElementById('scannerWrapper').style.display = 'block';
             document.getElementById('btnCamText').innerText = "Tắt Camera";
@@ -1402,22 +1426,26 @@
         // FIX: phát tín hiệu bíp/rung theo đúng yêu cầu:
         // - Thành công: bíp 80ms + rung 50ms (1 lần).
         // - Lỗi (mã ngoài danh mục / không hợp lệ): rung ngắt quãng [100,50,100] (giữ nguyên) + bíp 3 lần.
-        function playFeedback(type) {
-            const AudioCtx = window.AudioContext || window.webkitAudioContext;
-            const beepOnce = (freq, durationSec, volume) => {
-                try {
-                    const ctx = new AudioCtx();
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.frequency.value = freq;
-                    gain.gain.value = volume;
-                    osc.start();
-                    osc.stop(ctx.currentTime + durationSec);
-                } catch (e) {}
-            };
+        // Dùng chung SHARED_AUDIO_CTX (xem ensureAudioUnlocked ở trên) thay vì tạo AudioContext mới mỗi
+        // lần bíp - đây là điểm mấu chốt để có tiếng khi bíp được gọi từ callback quét camera.
+        function beepOnce(freq, durationSec, volume) {
+            try {
+                if (!SHARED_AUDIO_CTX) return; // chưa có thao tác chạm nào để mở khoá audio
+                const ctx = SHARED_AUDIO_CTX;
+                if (ctx.state === 'suspended') ctx.resume();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = freq;
+                gain.gain.value = volume;
+                const now = ctx.currentTime;
+                osc.start(now);
+                osc.stop(now + durationSec);
+            } catch (e) {}
+        }
 
+        function playFeedback(type) {
             if (type === 'success') {
                 beepOnce(1200, 0.08, 0.1);              // bíp 80ms
                 if (navigator.vibrate) navigator.vibrate(50); // rung 50ms
