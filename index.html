@@ -195,7 +195,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <div style="display:flex; align-items:center; gap:6px;">
                         <input type="checkbox" id="continuousMode" style="width:16px; height:16px;">
-                        <label for="continuousMode" style="font-size:12px; font-weight:bold; cursor:pointer;">Quét liên tục (+1)</label>
+                        <label for="continuousMode" style="font-size:12px; font-weight:bold; cursor:pointer;">Quét liên tục</label>
                     </div>
                     <button class="btn btn-secondary" style="min-height:32px; padding:6px 10px; font-size:12px;" onclick="toggleCameraUI()">
                         <i class="fa-solid fa-camera"></i> <span id="btnCamText">Mở Camera</span>
@@ -229,12 +229,12 @@
                     <table id="liveTable">
                         <thead>
                             <tr>
-                                <th style="width:40px;">STT</th>
-                                <th style="width:140px;">MÃ HÀNG</th>
-                                <th>TÊN HÀNG</th>
-                                <th style="width:60px;">ĐVT</th>
-                                <th style="width:70px;">SL</th>
-                                <th style="width:40px;">XÓA</th>
+                                <th style="width:32px;">STT</th>
+                                <th style="width:90px;">MÃ HÀNG</th>
+                                <th style="width:120px;">TÊN HÀNG</th>
+                                <th style="width:50px;">ĐVT</th>
+                                <th style="width:60px;">SL</th>
+                                <th style="width:32px;">XÓA</th>
                             </tr>
                         </thead>
                         <tbody id="liveTableBody"></tbody>
@@ -681,23 +681,18 @@
 
             const isCont = document.getElementById('continuousMode').checked;
 
-            // Kiểm tra mã trong bảng hiện tại
-            const existIdx = STAFF_LIVE_ITEMS.findIndex(it => it.maHang === code);
-            if (isCont && existIdx !== -1) {
-                STAFF_LIVE_ITEMS[existIdx].sl += 1;
-                renderLiveTable();
-                if (!skipFeedback) playFeedback('success');
-            } else {
-                const product = LOCAL_CATALOG.get(code) || LOCAL_CATALOG.get(code.toLowerCase()) || { "Mã hàng": code, "Tên hàng": "#NA (Hàng ngoài danh mục)", "ĐVT": "" };
-                STAFF_LIVE_ITEMS.unshift({
-                    maHang: product['Mã hàng'],
-                    tenHang: product['Tên hàng'],
-                    dvt: product['ĐVT'] || '',
-                    sl: isCont ? 1 : qty
-                });
-                renderLiveTable();
-                if (!skipFeedback) playFeedback(product['Tên hàng'].startsWith('#NA') ? 'error' : 'success');
-            }
+            // FIX: Ở chế độ "Quét liên tục", TRƯỚC ĐÂY nếu quét trùng mã đã có trong bảng thì cộng dồn
+            // số lượng vào dòng cũ (sl += 1). Theo yêu cầu mới: luôn tạo DÒNG MỚI riêng biệt với số
+            // lượng = 1 cho mỗi lần quét, kể cả khi trùng mã - không gộp dòng nữa.
+            const product = LOCAL_CATALOG.get(code) || LOCAL_CATALOG.get(code.toLowerCase()) || { "Mã hàng": code, "Tên hàng": "#NA (Hàng ngoài danh mục)", "ĐVT": "" };
+            STAFF_LIVE_ITEMS.unshift({
+                maHang: product['Mã hàng'],
+                tenHang: product['Tên hàng'],
+                dvt: product['ĐVT'] || '',
+                sl: isCont ? 1 : qty
+            });
+            renderLiveTable();
+            if (!skipFeedback) playFeedback(product['Tên hàng'].startsWith('#NA') ? 'error' : 'success');
 
             document.getElementById('staffBarcodeInput').value = "";
             document.getElementById('staffQtyInput').value = "1";
@@ -708,12 +703,19 @@
         function renderLiveTable() {
             const tbody = document.getElementById('liveTableBody');
             tbody.innerHTML = "";
+            const total = STAFF_LIVE_ITEMS.length;
             STAFF_LIVE_ITEMS.forEach((it, idx) => {
                 const row = tbody.insertRow();
+                // FIX: STT đánh số theo thứ tự NHẬP THỰC TẾ - dòng nhập đầu tiên = 1, nằm dưới cùng bảng;
+                // dòng vừa quét mới nhất = số lớn nhất, nằm trên cùng bảng (vì mảng dùng unshift() để mã mới
+                // luôn chèn lên đầu mảng). STT hiển thị = (tổng số dòng - vị trí trong mảng).
+                const stt = total - idx;
+                // FIX: đổi ô Mã Hàng / Tên Hàng từ <input> (chỉ hiện 1 dòng) sang <textarea rows="2">
+                // để cho phép xuống dòng, hiển thị đầy đủ nội dung dài trong tối đa 2 dòng, cỡ chữ nhỏ lại.
                 row.innerHTML = `
-                    <td>${idx + 1}</td>
-                    <td><input type="text" class="form-control" style="padding:4px;" value="${it.maHang}" onchange="handleStaffEditCode(${idx}, this.value)"></td>
-                    <td><input type="text" class="form-control" style="padding:4px; ${it.tenHang.startsWith('#NA')?'color:var(--danger);':''}" value="${it.tenHang}" onchange="handleStaffEditName(${idx}, this.value)"></td>
+                    <td style="text-align:center;">${stt}</td>
+                    <td><textarea class="form-control" rows="2" style="padding:4px; font-size:11px; line-height:1.25; resize:none; white-space:normal; word-break:break-word;" onchange="handleStaffEditCode(${idx}, this.value)">${it.maHang}</textarea></td>
+                    <td><textarea class="form-control" rows="2" style="padding:4px; font-size:11px; line-height:1.25; resize:none; white-space:normal; word-break:break-word; ${it.tenHang.startsWith('#NA')?'color:var(--danger);':''}" onchange="handleStaffEditName(${idx}, this.value)">${it.tenHang}</textarea></td>
                     <td><input type="text" class="form-control" style="padding:4px; width:50px;" value="${it.dvt}" onchange="STAFF_LIVE_ITEMS[${idx}].dvt=this.value"></td>
                     <td><input type="number" class="form-control" style="padding:4px; width:65px; font-weight:bold; color:var(--danger);" value="${it.sl}" onchange="STAFF_LIVE_ITEMS[${idx}].sl=parseFloat(this.value)||0"></td>
                     <td><i class="fa-solid fa-trash" style="color:var(--danger);cursor:pointer;" onclick="STAFF_LIVE_ITEMS.splice(${idx},1);renderLiveTable();"></i></td>
