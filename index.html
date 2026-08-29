@@ -97,6 +97,8 @@
         th { background: var(--bg); padding: 10px; color: var(--text-sub); font-weight: 600; position: sticky; top: 0; border-bottom: 1px solid var(--border); }
         td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
         .qty-badge { font-weight: 800; color: var(--danger); font-size: 15px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        #liveTable { table-layout: fixed; }
 
         /* TABS */
         .tabs { display: flex; gap: 6px; overflow-x: auto; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 12px; }
@@ -717,8 +719,8 @@ function renderLiveTable() {
             <td style="text-align:center; font-size:11px;">${stt}</td>
             <td><textarea class="form-control" rows="2" style="padding:4px; font-size:11px; line-height:1.25; resize:none; white-space:normal; word-break:break-word;" onchange="handleStaffEditCode(${idx}, this.value)">${it.maHang}</textarea></td>
             <td><textarea class="form-control" rows="2" style="padding:4px; font-size:11px; line-height:1.25; resize:none; white-space:normal; word-break:break-word; ${it.tenHang.startsWith('#NA')?'color:var(--danger);':''}" onchange="handleStaffEditName(${idx}, this.value)">${it.tenHang}</textarea></td>
-            <td><input type="text" class="form-control" style="padding:4px; width:50px; font-size:11px;" value="${it.dvt}" onchange="STAFF_LIVE_ITEMS[${idx}].dvt=this.value"></td>
-            <td><input type="number" class="form-control" style="padding:4px; width:65px; font-size:11px; font-weight:bold; color:var(--danger);" value="${it.sl}" onchange="STAFF_LIVE_ITEMS[${idx}].sl=parseFloat(this.value)||0"></td>
+            <td><input type="text" class="form-control" style="padding:4px; width:100%; font-size:11px;" value="${it.dvt}" onchange="STAFF_LIVE_ITEMS[${idx}].dvt=this.value"></td>
+<td><input type="number" class="form-control" style="padding:4px; width:100%; font-size:11px; font-weight:bold; color:var(--danger);" value="${it.sl}" onchange="STAFF_LIVE_ITEMS[${idx}].sl=parseFloat(this.value)||0"></td>
             <td><i class="fa-solid fa-trash" style="color:var(--danger);cursor:pointer;" onclick="STAFF_LIVE_ITEMS.splice(${idx},1);renderLiveTable();"></i></td>
         `;
     });
