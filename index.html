@@ -348,9 +348,10 @@
                 <div class="card">
                     <div class="input-row">
                         <div class="form-group"><label>CHỌN KỲ KIỂM KÊ</label><select id="reportAuditSelect" class="form-control"></select></div>
-                        <div style="display:flex; align-items:flex-end; gap:6px;">
-                            <button class="btn btn-primary btn-block" onclick="runPreliminaryReport()"><i class="fa-solid fa-calculator"></i> CHẠY BÁO CÁO</button>
-                            <button class="btn btn-success" onclick="exportPreliminaryExcel()" title="Xuất Excel"><i class="fa-solid fa-file-excel"></i></button>
+                        <div style="display:flex; align-items:flex-end; gap:6px; flex-wrap: wrap;">
+                         <button class="btn btn-primary" onclick="runPreliminaryReport()"><i class="fa-solid fa-calculator"></i> CHẠY BÁO CÁO</button>
+                         <button class="btn btn-success" onclick="exportPreliminaryExcel()" title="Xuất Excel Sơ Bộ"><i class="fa-solid fa-file-excel"></i> Excel Sơ Bộ</button>
+                         <button class="btn btn-purple" onclick="handleOpenModal05VT()" title="Xuất Mẫu 05-VT Thông tư 133"><i class="fa-solid fa-file-invoice"></i> Mẫu 05-VT (TT133)</button>
                         </div>
                     </div>
 
@@ -494,7 +495,64 @@
             </div>
         </div>
     </div>
-
+    
+<!-- MODAL 5: THIẾT LẬP THÔNG TIN MẪU 05-VT (TT 133/2016/TT-BTC) -->
+    <div id="modal05VT" class="modal">
+        <div class="modal-content" style="max-width:550px;">
+            <div class="modal-header">
+                <span><i class="fa-solid fa-file-invoice"></i> Thiết Lập Biên Bản Mẫu 05-VT</span>
+                <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal05VT')"></i>
+            </div>
+            <div class="modal-body">
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>TÊN ĐƠN VỊ / DOANH NGHIỆP</label>
+                        <input type="text" id="vtCompanyName" class="form-control" placeholder="Tên công ty...">
+                    </div>
+                    <div class="form-group">
+                        <label>CHI NHÁNH / ĐỊA ĐIỂM</label>
+                        <input type="text" id="vtBranchName" class="form-control" placeholder="Tên chi nhánh/kho...">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>THỜI ĐIỂM KIỂM KÊ (Ghi trên biên bản)</label>
+                    <input type="text" id="vtTimeText" class="form-control" placeholder="VD: 08 giờ 00 ngày 13 tháng 09 năm 2026">
+                </div>
+                <div class="card" style="padding:10px; margin-bottom:10px; background:var(--bg);">
+                    <div style="font-size:12px; font-weight:bold; margin-bottom:8px; color:var(--primary);">
+                        <i class="fa-solid fa-users"></i> THÀNH PHẦN BAN KIỂM KÊ & KÝ DUYỆT
+                    </div>
+                    <div class="input-row">
+                        <div class="form-group">
+                            <label>TRƯỞNG BAN KIỂM KÊ</label>
+                            <input type="text" id="vtTruongBan" class="form-control" placeholder="Họ và tên...">
+                        </div>
+                        <div class="form-group">
+                            <label>KẾ TOÁN TRƯỞNG / PHỤ TRÁCH</label>
+                            <input type="text" id="vtKeToan" class="form-control" placeholder="Họ và tên...">
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="form-group">
+                            <label>THỦ KHO</label>
+                            <input type="text" id="vtThuKho" class="form-control" placeholder="Họ và tên...">
+                        </div>
+                        <div class="form-group">
+                            <label>GIÁM ĐỐC / ĐẠI DIỆN PL</label>
+                            <input type="text" id="vtGiamDoc" class="form-control" placeholder="Họ và tên...">
+                        </div>
+                    </div>
+                </div>
+                <p style="font-size:11px; color:var(--text-sub); font-style:italic;">
+                    * Lưu ý: Thông tin này sẽ được lưu tự động trên trình duyệt cho các lần xuất tiếp theo.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-purple" onclick="executeExport05VT()"><i class="fa-solid fa-file-excel"></i> Tải Xuất File Excel</button>
+                <button class="btn btn-secondary" onclick="closeModal('modal05VT')">Hủy Bỏ</button>
+            </div>
+        </div>
+    </div>
     <!-- KHU VỰC IN PHIẾU CONTROLLER CHUẨN A4 -->
     <div id="printArea"></div>
 
@@ -1290,6 +1348,272 @@ function renderLiveTable() {
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "BaoCaoSoBo");
             XLSX.writeFile(wb, `BaoCao_SoBo_${new Date().getTime()}.xlsx`);
+        }
+
+        // ==================== XỬ LÝ MẪU 05-VT (TT 133/2016/TT-BTC) ====================
+        function handleOpenModal05VT() {
+            if (!currentPreliminaryData || currentPreliminaryData.length === 0) {
+                return showToast("⚠️ Vui lòng bấm [CHẠY BÁO CÁO] trước khi xuất file!");
+            }
+
+            // Kiểm tra hàng phát sinh thiếu đơn giá
+            const missingPriceItems = currentPreliminaryData.filter(r => r.isEmergent && (!r.donGia || r.donGia === 0));
+            if (missingPriceItems.length > 0) {
+                const conf = confirm(`⚠️ Có ${missingPriceItems.length} mặt hàng phát sinh chưa có giá vốn/đơn giá.\n\n- Bấm OK để tiếp tục xuất (đơn giá và thành tiền sẽ để trống cho các mặt hàng này).\n- Bấm CANCEL để quay lại nhập đơn giá.`);
+                if (!conf) return;
+            }
+
+            // Tự động gợi ý thông tin ban đầu hoặc nạp từ localStorage
+            const savedConfig = JSON.parse(localStorage.getItem('kiemke_05vt_config') || '{}');
+            const now = new Date();
+            const defaultTimeStr = `${now.getHours()} giờ ${String(now.getMinutes()).padStart(2, '0')} ngày ${String(now.getDate()).padStart(2, '0')} tháng ${String(now.getMonth() + 1).padStart(2, '0')} năm ${now.getFullYear()}`;
+
+            const defaultTenant = CURRENT_USER && CURRENT_USER.tenant ? CURRENT_USER.tenant.toUpperCase() : "CÔNG TY";
+            const defaultBranch = CURRENT_USER && CURRENT_USER.branch ? CURRENT_USER.branch : "";
+
+            document.getElementById('vtCompanyName').value = savedConfig.companyName || (defaultTenant === "ASMART" ? "Công ty CP Siêu thị A&S" : defaultTenant);
+            document.getElementById('vtBranchName').value = savedConfig.branchName || defaultBranch;
+            document.getElementById('vtTimeText').value = savedConfig.timeText || defaultTimeStr;
+            document.getElementById('vtTruongBan').value = savedConfig.truongBan || (CURRENT_USER ? CURRENT_USER.fullName : "");
+            document.getElementById('vtKeToan').value = savedConfig.keToan || "";
+            document.getElementById('vtThuKho').value = savedConfig.thuKho || "";
+            document.getElementById('vtGiamDoc').value = savedConfig.giamDoc || (defaultTenant === "ASMART" ? "Đỗ Anh Tuấn" : "");
+
+            document.getElementById('modal05VT').style.display = 'flex';
+        }
+
+        function executeExport05VT() {
+            const companyName = document.getElementById('vtCompanyName').value.trim();
+            const branchName = document.getElementById('vtBranchName').value.trim();
+            const timeText = document.getElementById('vtTimeText').value.trim();
+            const truongBan = document.getElementById('vtTruongBan').value.trim();
+            const keToan = document.getElementById('vtKeToan').value.trim();
+            const thuKho = document.getElementById('vtThuKho').value.trim();
+            const giamDoc = document.getElementById('vtGiamDoc').value.trim();
+
+            // Lưu cấu hình vào localStorage cho các lần sau
+            localStorage.setItem('kiemke_05vt_config', JSON.stringify({
+                companyName, branchName, timeText, truongBan, keToan, thuKho, giamDoc
+            }));
+
+            closeModal('modal05VT');
+            showLoading("Đang khởi tạo Biên bản Mẫu 05-VT...");
+
+            try {
+                // Xây dựng ma trận dữ liệu (Array of Arrays)
+                const wsData = [];
+
+                // Header hành chính
+                wsData.push([`Đơn vị: ${companyName}`, "", "", "", "", "", "", "", "", "Mẫu số 05 - VT", "", ""]);
+                wsData.push([`Chi nhánh: ${branchName}`, "", "", "", "", "", "", "", "", "(Ban hành theo Thông tư số 133/2016/TT-BTC", "", ""]);
+                wsData.push(["", "", "", "", "", "", "", "", "", "Ngày 26/08/2016 của Bộ Tài chính)", "", ""]);
+                wsData.push([]);
+                wsData.push(["", "", "", "", "BIÊN BẢN KIỂM KÊ VẬT TƯ, CÔNG CỤ, SẢN PHẨM, HÀNG HOÁ", "", "", "", "", "", "", ""]);
+                wsData.push(["", "", "", "", `- Thời điểm kiểm kê: ${timeText}`, "", "", "", "", "", "", ""]);
+                wsData.push(["- Ban kiểm kê gồm:", "", "", "", "", "", "", "", "", "", "", ""]);
+                wsData.push([`+ Ông/Bà: ${truongBan || '................................'}`, "", "", "Chức vụ: Trưởng ban kiểm kê", "", "", "", "", "", "", "", ""]);
+                wsData.push([`+ Ông/Bà: ${keToan || '................................'}`, "", "", "Chức vụ: Kế toán trưởng / Đại diện kế toán", "", "", "", "", "", "", ""]);
+                wsData.push([`+ Ông/Bà: ${thuKho || '................................'}`, "", "", "Chức vụ: Thủ kho / Phụ trách kho", "", "", "", "", "", "", ""]);
+                wsData.push(["- Đã kiểm kê kho có những mặt hàng dưới đây:", "", "", "", "", "", "", "", "", "", "", ""]);
+                wsData.push([]);
+
+                // Tiêu đề bảng 2 cấp (Header Table)
+                wsData.push([
+                    "STT",
+                    "Tên nhãn hiệu, quy cách vật tư, dụng cụ",
+                    "Mã số",
+                    "ĐVT",
+                    "Đơn giá",
+                    "Theo sổ kế toán",
+                    "",
+                    "Kiểm kê",
+                    "",
+                    "Chênh lệch",
+                    "",
+                    "",
+                    "",
+                    "Phẩm chất",
+                    "",
+                    ""
+                ]);
+
+                wsData.push([
+                    "", "", "", "", "",
+                    "Số lượng", "Thành tiền",
+                    "Số lượng", "Thành tiền",
+                    "Thừa (SL)", "Thừa (Tiền)",
+                    "Thiếu (SL)", "Thiếu (Tiền)",
+                    "Còn tốt 100%", "Kém phẩm chất", "Mất phẩm chất"
+                ]);
+
+                // Hàng đánh số cột A, B, C, D, 1, 2, 3...
+                wsData.push([
+                    "A", "B", "C", "D", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"
+                ]);
+
+                // Biến tính tổng cộng
+                let sumSoLuongSo = 0;
+                let sumThanhTienSo = 0;
+                let sumSoLuongThuc = 0;
+                let sumThanhTienThuc = 0;
+                let sumThuaSL = 0;
+                let sumThuaTien = 0;
+                let sumThieuSL = 0;
+                let sumThieuTien = 0;
+                let sumConTot = 0;
+
+                // Nạp dữ liệu từng mặt hàng (Toàn bộ danh mục đã kiểm kê)
+                currentPreliminaryData.forEach((it, idx) => {
+                    const price = parseFloat(it.donGia) || 0;
+                    const slSo = parseFloat(it.slTon) || 0;
+                    const slThuc = parseFloat(it.slThucTe) || 0;
+                    const diffQty = slThuc - slSo;
+
+                    const hasPrice = (price > 0);
+                    const ttSo = hasPrice ? (slSo * price) : "";
+                    const ttThuc = hasPrice ? (slThuc * price) : "";
+
+                    let slThua = "", ttThua = "";
+                    let slThieu = "", ttThieu = "";
+
+                    if (diffQty > 0) {
+                        slThua = diffQty;
+                        ttThua = hasPrice ? (diffQty * price) : "";
+                        sumThuaSL += slThua;
+                        if (hasPrice) sumThuaTien += ttThua;
+                    } else if (diffQty < 0) {
+                        slThieu = Math.abs(diffQty);
+                        ttThieu = hasPrice ? (Math.abs(diffQty) * price) : "";
+                        sumThieuSL += slThieu;
+                        if (hasPrice) sumThieuTien += ttThieu;
+                    }
+
+                    sumSoLuongSo += slSo;
+                    if (hasPrice) sumThanhTienSo += (slSo * price);
+                    sumSoLuongThuc += slThuc;
+                    if (hasPrice) sumThanhTienThuc += (slThuc * price);
+                    sumConTot += slThuc;
+
+                    wsData.push([
+                        idx + 1,
+                        it.tenHang || "",
+                        it.maHang || "",
+                        it.dvt || "",
+                        hasPrice ? price : "",
+                        slSo,
+                        ttSo,
+                        slThuc,
+                        ttThuc,
+                        slThua,
+                        ttThua,
+                        slThieu,
+                        ttThieu,
+                        slThuc, // Mặc định còn tốt 100% bằng SL thực tế
+                        "",     // Kém phẩm chất
+                        ""      // Mất phẩm chất
+                    ]);
+                });
+
+                // Dòng Tổng Cộng
+                wsData.push([
+                    "Cộng", "", "", "", "x",
+                    sumSoLuongSo,
+                    sumThanhTienSo,
+                    sumSoLuongThuc,
+                    sumThanhTienThuc,
+                    sumThuaSL,
+                    sumThuaTien,
+                    sumThieuSL,
+                    sumThieuTien,
+                    sumConTot,
+                    "x", "x"
+                ]);
+
+                // Footer Chữ ký
+                wsData.push([]);
+                wsData.push(["", "", "", "", "", "", "", "", "", "", "", "", "", "Ngày ... tháng ... năm ...", "", ""]);
+                wsData.push([
+                    "Giám đốc", "", "",
+                    "Kế toán trưởng", "", "",
+                    "Thủ kho", "", "",
+                    "Trưởng ban kiểm kê", "", "", "", "", "", ""
+                ]);
+                wsData.push([
+                    "(Ý kiến giải quyết chênh lệch)", "", "",
+                    "(Ký, họ tên)", "", "",
+                    "(Ký, họ tên)", "", "",
+                    "(Ký, họ tên)", "", "", "", "", "", ""
+                ]);
+                wsData.push([]);
+                wsData.push([]);
+                wsData.push([]);
+                wsData.push([
+                    giamDoc ? giamDoc : "", "", "",
+                    keToan ? keToan : "", "", "",
+                    thuKho ? thuKho : "", "", "",
+                    truongBan ? truongBan : "", "", "", "", "", "", ""
+                ]);
+
+                // Tạo Sheet từ ma trận dữ liệu
+                const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+                // Cấu hình Merge Cells chuẩn form 05-VT
+                ws['!merges'] = [
+                    // Tiêu đề & Thông tin
+                    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Đơn vị
+                    { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // Chi nhánh
+                    { s: { r: 0, c: 9 }, e: { r: 0, c: 15 } }, // Mẫu số 05-VT
+                    { s: { r: 1, c: 9 }, e: { r: 1, c: 15 } }, // TT133
+                    { s: { r: 2, c: 9 }, e: { r: 2, c: 15 } },
+                    { s: { r: 4, c: 1 }, e: { r: 4, c: 13 } }, // Title BIÊN BẢN KIỂM KÊ
+                    { s: { r: 5, c: 1 }, e: { r: 5, c: 13 } }, // Thời điểm kiểm kê
+                    // Header bảng (Dòng 12, 13)
+                    { s: { r: 12, c: 0 }, e: { r: 13, c: 0 } }, // STT
+                    { s: { r: 12, c: 1 }, e: { r: 13, c: 1 } }, // Tên
+                    { s: { r: 12, c: 2 }, e: { r: 13, c: 2 } }, // Mã
+                    { s: { r: 12, c: 3 }, e: { r: 13, c: 3 } }, // ĐVT
+                    { s: { r: 12, c: 4 }, e: { r: 13, c: 4 } }, // Đơn giá
+                    { s: { r: 12, c: 5 }, e: { r: 12, c: 6 } }, // Theo sổ KT
+                    { s: { r: 12, c: 7 }, e: { r: 12, c: 8 } }, // Kiểm kê
+                    { s: { r: 12, c: 9 }, e: { r: 12, c: 12 } }, // Chênh lệch (Thừa + Thiếu)
+                    { s: { r: 12, c: 13 }, e: { r: 12, c: 15 } }, // Phẩm chất
+                    // Dòng Cộng
+                    { s: { r: 15 + currentPreliminaryData.length, c: 0 }, e: { r: 15 + currentPreliminaryData.length, c: 3 } }
+                ];
+
+                // Thiết lập độ rộng cột (Column Widths)
+                ws['!cols'] = [
+                    { wch: 6 },  // A: STT
+                    { wch: 32 }, // B: Tên hàng
+                    { wch: 14 }, // C: Mã số
+                    { wch: 8 },  // D: ĐVT
+                    { wch: 12 }, // 1: Đơn giá
+                    { wch: 10 }, // 2: SL Sổ
+                    { wch: 14 }, // 3: TT Sổ
+                    { wch: 10 }, // 4: SL Thực
+                    { wch: 14 }, // 5: TT Thực
+                    { wch: 10 }, // 6: Thừa SL
+                    { wch: 14 }, // 7: Thừa Tiền
+                    { wch: 10 }, // 8: Thiếu SL
+                    { wch: 14 }, // 9: Thiếu Tiền
+                    { wch: 12 }, // 10: Còn tốt
+                    { wch: 12 }, // 11: Kém PC
+                    { wch: 12 }  // 12: Mất PC
+                ];
+
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Mau_05_VT");
+
+                const auditCode = document.getElementById('reportAuditSelect').value || "KIEM_KE";
+                XLSX.writeFile(wb, `BienBan_KiemKe_Mau05VT_${auditCode}_${new Date().getTime()}.xlsx`);
+
+                hideLoading();
+                showToast("✅ Đã xuất file Mẫu 05-VT thành công!");
+            } catch (err) {
+                console.error(err);
+                hideLoading();
+                showToast("❌ Lỗi khi khởi tạo file Excel: " + err.message);
+            }
         }
 
         async function saveEmergentPrices() {
