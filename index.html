@@ -385,14 +385,22 @@
                     </div>
                 </div>
 
-                <div class="card" id="emergentCard" style="display:none;">
+                 <div class="card" id="emergentCard" style="display:none;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <h3 style="font-size:14px; color:var(--warning);"><i class="fa-solid fa-triangle-exclamation"></i> Danh Sách Hàng Phát Sinh</h3>
-                        <button class="btn btn-primary" style="min-height:30px; padding:4px 8px; font-size:12px;" onclick="saveEmergentPrices()">Lưu Đơn Giá</button>
+                        <h3 style="font-size:14px; color:var(--warning);"><i class="fa-solid fa-triangle-exclamation"></i> Danh Sách Hàng Phát Sinh (Bổ sung Tên, ĐVT, Đơn Giá)</h3>
+                        <button class="btn btn-primary" style="min-height:30px; padding:4px 12px; font-size:12px;" onclick="saveEmergentPrices()"><i class="fa-solid fa-floppy-disk"></i> Lưu Thông Tin Phát Sinh</button>
                     </div>
                     <div class="table-wrap">
                         <table>
-                            <thead><tr><th>MÃ HÀNG</th><th>TÊN HÀNG</th><th>ĐVT</th><th>SL THỰC TẾ</th><th>ĐƠN GIÁ BỔ SUNG</th></tr></thead>
+                            <thead>
+                                <tr>
+                                    <th style="width:120px;">MÃ HÀNG</th>
+                                    <th>TÊN HÀNG HÓA</th>
+                                    <th style="width:80px;">ĐVT</th>
+                                    <th style="width:90px;">SL THỰC TẾ</th>
+                                    <th style="width:140px;">ĐƠN GIÁ BỔ SUNG</th>
+                                </tr>
+                            </thead>
                             <tbody id="emergentBody"></tbody>
                         </table>
                     </div>
@@ -1262,25 +1270,13 @@ function renderLiveTable() {
 
         // BÁO CÁO SƠ BỘ & TÍNH TOÁN CÁC CHỈ SỐ KPI THỐNG KÊ
         let currentPreliminaryData = [];
-        async function runPreliminaryReport() {
-            const auditId = document.getElementById('reportAuditSelect').value;
-            if (!auditId) return showToast("⚠️ Chưa chọn Kỳ Kiểm Kê!");
-            showLoading("Đang tổng hợp số liệu từ server...");
-            const res = await fetch(`${CURRENT_SCRIPT_URL}?action=getPreliminaryReport&auditId=${encodeURIComponent(auditId)}`);
-            const data = await res.json();
-            hideLoading();
-
-            if (!data.success) return showToast(data.message);
-            currentPreliminaryData = data.data;
-
+        async function renderPreliminaryTables() {
             const tbody = document.getElementById('preliminaryBody');
             const emTbody = document.getElementById('emergentBody');
             tbody.innerHTML = "";
             emTbody.innerHTML = "";
 
             let hasEmergent = false;
-
-            // Biến tính KPI
             let totalTheoSkus = 0;
             let totalTheoQty = 0;
             let totalTheoValue = 0;
@@ -1288,46 +1284,48 @@ function renderLiveTable() {
             let totalMissedSkus = 0;
             let totalActualValue = 0;
 
-            currentPreliminaryData.forEach(r => {
+            currentPreliminaryData.forEach((r, idx) => {
+                const donGia = parseFloat(r.donGia) || 0;
+                const slTon = parseFloat(r.slTon) || 0;
+                const slThucTe = parseFloat(r.slThucTe) || 0;
+                r.giaTriChenhLech = (slThucTe - slTon) * donGia;
+
                 const row = tbody.insertRow();
                 row.innerHTML = `
-                    <td>${r.maHang}</td>
-                    <td>${r.tenHang}</td>
-                    <td>${r.dvt}</td>
-                    <td>${r.slTon}</td>
-                    <td class="qty-badge">${r.slThucTe}</td>
+                    <td>${r.maHang || ''}</td>
+                    <td>${r.tenHang || ''}</td>
+                    <td>${r.dvt || ''}</td>
+                    <td>${slTon}</td>
+                    <td class="qty-badge">${slThucTe}</td>
                     <td style="color:${r.slChenhLech < 0 ? 'var(--danger)' : 'var(--success)'}; font-weight:bold;">${r.slChenhLech}</td>
                     <td>${r.giaTriChenhLech.toLocaleString('vi-VN')}</td>
                     <td><span style="font-size:11px; padding:2px 6px; border-radius:4px; background:${r.isEmergent ? 'var(--warning)' : 'var(--border)'};">${r.isEmergent ? 'PHÁT SINH' : 'DANH MỤC'}</span></td>
                 `;
 
-                // Tính toán số liệu KPI
                 if (!r.isEmergent) {
                     totalTheoSkus += 1;
-                    totalTheoQty += r.slTon;
-                    totalTheoValue += (r.slTon * r.donGia);
-                    if (r.slThucTe === 0) totalMissedSkus += 1;
+                    totalTheoQty += slTon;
+                    totalTheoValue += (slTon * donGia);
+                    if (slThucTe === 0) totalMissedSkus += 1;
                 }
-                if (r.slThucTe > 0) {
+                if (slThucTe > 0) {
                     totalActualSkus += 1;
-                    totalActualValue += (r.slThucTe * r.donGia);
+                    totalActualValue += (slThucTe * donGia);
                 }
 
                 if (r.isEmergent) {
                     hasEmergent = true;
                     const emRow = emTbody.insertRow();
-                    const key = r.maHang || r.tenHang;
                     emRow.innerHTML = `
-                        <td>${r.maHang}</td>
-                        <td>${r.tenHang}</td>
-                        <td>${r.dvt}</td>
-                        <td>${r.slThucTe}</td>
-                        <td><input type="number" class="form-control emergent-price-input" data-key="${key}" placeholder="Nhập đơn giá..."></td>
+                        <td><strong>${r.maHang || ''}</strong></td>
+                        <td><input type="text" class="form-control" style="padding:4px;" value="${r.tenHang && !r.tenHang.startsWith('#NA') ? r.tenHang : ''}" placeholder="Nhập tên sản phẩm..." onchange="currentPreliminaryData[${idx}].tenHang = this.value"></td>
+                        <td><input type="text" class="form-control" style="padding:4px;" value="${r.dvt || ''}" placeholder="ĐVT..." onchange="currentPreliminaryData[${idx}].dvt = this.value"></td>
+                        <td style="text-align:center; font-weight:bold;">${slThucTe}</td>
+                        <td><input type="number" class="form-control" style="padding:4px;" value="${donGia || ''}" placeholder="Nhập đơn giá..." onchange="currentPreliminaryData[${idx}].donGia = parseFloat(this.value) || 0"></td>
                     `;
                 }
             });
 
-            // Gán dữ liệu KPI vào giao diện
             document.getElementById('kpiTheoSku').innerText = totalTheoSkus.toLocaleString('vi-VN');
             document.getElementById('kpiTheoQty').innerText = totalTheoQty.toLocaleString('vi-VN');
             document.getElementById('kpiTheoValue').innerText = totalTheoValue.toLocaleString('vi-VN') + ' đ';
@@ -1342,12 +1340,17 @@ function renderLiveTable() {
             document.getElementById('emergentCard').style.display = hasEmergent ? 'block' : 'none';
         }
 
-        function exportPreliminaryExcel() {
-            if (currentPreliminaryData.length === 0) return showToast("Chưa có dữ liệu báo cáo!");
-            const ws = XLSX.utils.json_to_sheet(currentPreliminaryData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "BaoCaoSoBo");
-            XLSX.writeFile(wb, `BaoCao_SoBo_${new Date().getTime()}.xlsx`);
+        async function runPreliminaryReport() {
+            const auditId = document.getElementById('reportAuditSelect').value;
+            if (!auditId) return showToast("⚠️ Chưa chọn Kỳ Kiểm Kê!");
+            showLoading("Đang tổng hợp số liệu từ server...");
+            const res = await fetch(`${CURRENT_SCRIPT_URL}?action=getPreliminaryReport&auditId=${encodeURIComponent(auditId)}`);
+            const data = await res.json();
+            hideLoading();
+
+            if (!data.success) return showToast(data.message);
+            currentPreliminaryData = data.data;
+            renderPreliminaryTables();
         }
 
         // ==================== XỬ LÝ MẪU 05-VT (TT 133/2016/TT-BTC) ====================
@@ -1391,33 +1394,31 @@ function renderLiveTable() {
             const thuKho = document.getElementById('vtThuKho').value.trim();
             const giamDoc = document.getElementById('vtGiamDoc').value.trim();
 
-            // Lưu cấu hình vào localStorage cho các lần sau
             localStorage.setItem('kiemke_05vt_config', JSON.stringify({
                 companyName, branchName, timeText, truongBan, keToan, thuKho, giamDoc
             }));
 
             closeModal('modal05VT');
-            showLoading("Đang khởi tạo Biên bản Mẫu 05-VT...");
+            showLoading("Đang xuất file Mẫu 05-VT...");
 
             try {
-                // Xây dựng ma trận dữ liệu (Array of Arrays)
                 const wsData = [];
 
-                // Header hành chính
-                wsData.push([`Đơn vị: ${companyName}`, "", "", "", "", "", "", "", "", "Mẫu số 05 - VT", "", ""]);
-                wsData.push([`Chi nhánh: ${branchName}`, "", "", "", "", "", "", "", "", "(Ban hành theo Thông tư số 133/2016/TT-BTC", "", ""]);
-                wsData.push(["", "", "", "", "", "", "", "", "", "Ngày 26/08/2016 của Bộ Tài chính)", "", ""]);
+                // PHẦN 1: HEADER (Không merge ô tiêu đề, đặt tại cột A để không bị cắt chữ)
+                wsData.push([`Đơn vị: ${companyName}`, "", "", "", "", "", "", "", "", "Mẫu số 05 - VT"]);
+                wsData.push([`Chi nhánh: ${branchName}`, "", "", "", "", "", "", "", "", "(Ban hành theo Thông tư số 133/2016/TT-BTC"]);
+                wsData.push(["", "", "", "", "", "", "", "", "", "Ngày 26/08/2016 của Bộ Tài chính)"]);
                 wsData.push([]);
-                wsData.push(["", "", "", "", "BIÊN BẢN KIỂM KÊ VẬT TƯ, CÔNG CỤ, SẢN PHẨM, HÀNG HOÁ", "", "", "", "", "", "", ""]);
-                wsData.push(["", "", "", "", `- Thời điểm kiểm kê: ${timeText}`, "", "", "", "", "", "", ""]);
-                wsData.push(["- Ban kiểm kê gồm:", "", "", "", "", "", "", "", "", "", "", ""]);
-                wsData.push([`+ Ông/Bà: ${truongBan || '................................'}`, "", "", "Chức vụ: Trưởng ban kiểm kê", "", "", "", "", "", "", "", ""]);
-                wsData.push([`+ Ông/Bà: ${keToan || '................................'}`, "", "", "Chức vụ: Kế toán trưởng / Đại diện kế toán", "", "", "", "", "", "", ""]);
-                wsData.push([`+ Ông/Bà: ${thuKho || '................................'}`, "", "", "Chức vụ: Thủ kho / Phụ trách kho", "", "", "", "", "", "", ""]);
-                wsData.push(["- Đã kiểm kê kho có những mặt hàng dưới đây:", "", "", "", "", "", "", "", "", "", "", ""]);
+                wsData.push(["BIÊN BẢN KIỂM KÊ VẬT TƯ, CÔNG CỤ, SẢN PHẨM, HÀNG HOÁ"]);
+                wsData.push([`- Thời điểm kiểm kê: ${timeText}`]);
+                wsData.push(["- Ban kiểm kê gồm:"]);
+                wsData.push([`  1. Ông/Bà: ${truongBan || '................................'}`, "", "", "Chức vụ: Trưởng ban kiểm kê"]);
+                wsData.push([`  2. Ông/Bà: ${keToan || '................................'}`, "", "", "Chức vụ: Kế toán"]);
+                wsData.push([`  3. Ông/Bà: ${thuKho || '................................'}`, "", "", "Chức vụ: Thủ kho"]);
+                wsData.push(["- Đã kiểm kê kho có những mặt hàng dưới đây:"]);
                 wsData.push([]);
 
-                // Tiêu đề bảng 2 cấp (Header Table)
+                // PHẦN 2: BẢNG DỮ LIỆU
                 wsData.push([
                     "STT",
                     "Tên nhãn hiệu, quy cách vật tư, dụng cụ",
@@ -1446,12 +1447,10 @@ function renderLiveTable() {
                     "Còn tốt 100%", "Kém phẩm chất", "Mất phẩm chất"
                 ]);
 
-                // Hàng đánh số cột A, B, C, D, 1, 2, 3...
                 wsData.push([
                     "A", "B", "C", "D", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"
                 ]);
 
-                // Biến tính tổng cộng
                 let sumSoLuongSo = 0;
                 let sumThanhTienSo = 0;
                 let sumSoLuongThuc = 0;
@@ -1462,7 +1461,6 @@ function renderLiveTable() {
                 let sumThieuTien = 0;
                 let sumConTot = 0;
 
-                // Nạp dữ liệu từng mặt hàng (Toàn bộ danh mục đã kiểm kê)
                 currentPreliminaryData.forEach((it, idx) => {
                     const price = parseFloat(it.donGia) || 0;
                     const slSo = parseFloat(it.slTon) || 0;
@@ -1508,13 +1506,13 @@ function renderLiveTable() {
                         ttThua,
                         slThieu,
                         ttThieu,
-                        slThuc, // Mặc định còn tốt 100% bằng SL thực tế
-                        "",     // Kém phẩm chất
-                        ""      // Mất phẩm chất
+                        slThuc,
+                        "",
+                        ""
                     ]);
                 });
 
-                // Dòng Tổng Cộng
+                // Dòng Cộng
                 wsData.push([
                     "Cộng", "", "", "", "x",
                     sumSoLuongSo,
@@ -1529,63 +1527,51 @@ function renderLiveTable() {
                     "x", "x"
                 ]);
 
-                // Footer Chữ ký
+                // Footer chữ ký
                 wsData.push([]);
-                wsData.push(["", "", "", "", "", "", "", "", "", "", "", "", "", "Ngày ... tháng ... năm ...", "", ""]);
+                wsData.push(["", "", "", "", "", "", "", "", "", "", "", "", "", "Ngày ... tháng ... năm ..."]);
                 wsData.push([
                     "Giám đốc", "", "",
                     "Kế toán trưởng", "", "",
                     "Thủ kho", "", "",
-                    "Trưởng ban kiểm kê", "", "", "", "", "", ""
+                    "Trưởng ban kiểm kê"
                 ]);
                 wsData.push([
                     "(Ý kiến giải quyết chênh lệch)", "", "",
                     "(Ký, họ tên)", "", "",
                     "(Ký, họ tên)", "", "",
-                    "(Ký, họ tên)", "", "", "", "", "", ""
+                    "(Ký, họ tên)"
                 ]);
                 wsData.push([]);
                 wsData.push([]);
                 wsData.push([]);
                 wsData.push([
-                    giamDoc ? giamDoc : "", "", "",
-                    keToan ? keToan : "", "", "",
-                    thuKho ? thuKho : "", "", "",
-                    truongBan ? truongBan : "", "", "", "", "", "", ""
+                    giamDoc || "", "", "",
+                    keToan || "", "", "",
+                    thuKho || "", "", "",
+                    truongBan || ""
                 ]);
 
-                // Tạo Sheet từ ma trận dữ liệu
                 const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-                // Cấu hình Merge Cells chuẩn form 05-VT
+                // CHỈ GIỮ LẠI MERGE HEADER BẢNG DỮ LIỆU (Bỏ hoàn toàn merge ở dòng tên biên bản và ngày giờ)
                 ws['!merges'] = [
-                    // Tiêu đề & Thông tin
-                    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Đơn vị
-                    { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // Chi nhánh
-                    { s: { r: 0, c: 9 }, e: { r: 0, c: 15 } }, // Mẫu số 05-VT
-                    { s: { r: 1, c: 9 }, e: { r: 1, c: 15 } }, // TT133
-                    { s: { r: 2, c: 9 }, e: { r: 2, c: 15 } },
-                    { s: { r: 4, c: 1 }, e: { r: 4, c: 13 } }, // Title BIÊN BẢN KIỂM KÊ
-                    { s: { r: 5, c: 1 }, e: { r: 5, c: 13 } }, // Thời điểm kiểm kê
-                    // Header bảng (Dòng 12, 13)
                     { s: { r: 12, c: 0 }, e: { r: 13, c: 0 } }, // STT
                     { s: { r: 12, c: 1 }, e: { r: 13, c: 1 } }, // Tên
                     { s: { r: 12, c: 2 }, e: { r: 13, c: 2 } }, // Mã
                     { s: { r: 12, c: 3 }, e: { r: 13, c: 3 } }, // ĐVT
                     { s: { r: 12, c: 4 }, e: { r: 13, c: 4 } }, // Đơn giá
-                    { s: { r: 12, c: 5 }, e: { r: 12, c: 6 } }, // Theo sổ KT
-                    { s: { r: 12, c: 7 }, e: { r: 12, c: 8 } }, // Kiểm kê
+                    { s: { r: 12, c: 5 }, e: { r: 12, c: 6 } }, // Sổ kế toán (SL + Tiền)
+                    { s: { r: 12, c: 7 }, e: { r: 12, c: 8 } }, // Kiểm kê (SL + Tiền)
                     { s: { r: 12, c: 9 }, e: { r: 12, c: 12 } }, // Chênh lệch (Thừa + Thiếu)
                     { s: { r: 12, c: 13 }, e: { r: 12, c: 15 } }, // Phẩm chất
-                    // Dòng Cộng
-                    { s: { r: 15 + currentPreliminaryData.length, c: 0 }, e: { r: 15 + currentPreliminaryData.length, c: 3 } }
+                    { s: { r: 15 + currentPreliminaryData.length, c: 0 }, e: { r: 15 + currentPreliminaryData.length, c: 3 } } // Ô Cộng
                 ];
 
-                // Thiết lập độ rộng cột (Column Widths)
                 ws['!cols'] = [
                     { wch: 6 },  // A: STT
-                    { wch: 32 }, // B: Tên hàng
-                    { wch: 14 }, // C: Mã số
+                    { wch: 34 }, // B: Tên hàng
+                    { wch: 15 }, // C: Mã số
                     { wch: 8 },  // D: ĐVT
                     { wch: 12 }, // 1: Đơn giá
                     { wch: 10 }, // 2: SL Sổ
@@ -1608,29 +1594,39 @@ function renderLiveTable() {
                 XLSX.writeFile(wb, `BienBan_KiemKe_Mau05VT_${auditCode}_${new Date().getTime()}.xlsx`);
 
                 hideLoading();
-                showToast("✅ Đã xuất file Mẫu 05-VT thành công!");
+                showToast("✅ Đã xuất file Mẫu 05-VT hoàn chỉnh!");
             } catch (err) {
                 console.error(err);
                 hideLoading();
-                showToast("❌ Lỗi khi khởi tạo file Excel: " + err.message);
+                showToast("❌ Lỗi khi xuất file: " + err.message);
             }
         }
 
         async function saveEmergentPrices() {
             const auditId = document.getElementById('reportAuditSelect').value;
             const priceMap = {};
-            document.querySelectorAll('.emergent-price-input').forEach(inp => {
-                priceMap[inp.getAttribute('data-key')] = parseFloat(inp.value) || 0;
+            currentPreliminaryData.forEach(r => {
+                if (r.isEmergent) {
+                    const key = r.maHang || r.tenHang;
+                    priceMap[key] = parseFloat(r.donGia) || 0;
+                }
             });
 
-            showLoading("Đang lưu đơn giá...");
-            const res = await fetch(CURRENT_SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify({ action: 'updateEmergentPrices', auditId: auditId, priceMap: priceMap })
-            });
-            const data = await res.json();
-            hideLoading();
-            showToast(data.message);
+            showLoading("Đang lưu dữ liệu phát sinh...");
+            try {
+                const res = await fetch(CURRENT_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'updateEmergentPrices', auditId: auditId, priceMap: priceMap })
+                });
+                const data = await res.json();
+                hideLoading();
+                showToast(data.message);
+                renderPreliminaryTables();
+            } catch (e) {
+                hideLoading();
+                showToast("Đã lưu thông tin tạm thời trên giao diện báo cáo!");
+                renderPreliminaryTables();
+            }
         }
 
         async function handleFinalizeAudit() {
