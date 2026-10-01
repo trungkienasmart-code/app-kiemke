@@ -258,6 +258,7 @@
                 <button class="tab-btn" onclick="switchAdminTab('tabZones')"><i class="fa-solid fa-cubes"></i> Quản Lý Vùng</button>
                 <button class="tab-btn" onclick="switchAdminTab('tabReport')"><i class="fa-solid fa-chart-pie"></i> Báo Cáo Sơ Bộ</button>
                 <button class="tab-btn" onclick="switchAdminTab('tabHistory')"><i class="fa-solid fa-clock-rotate-left"></i> Chốt & Lịch Sử</button>
+                <button class="tab-btn" onclick="switchAdminTab('tabLog')"><i class="fa-solid fa-clipboard-list"></i> Lịch Sử Thao Tác</button>
             </div>
 
             <!-- TAB 1: KỲ, CHI NHÁNH & QUẢN LÝ USER -->
@@ -317,6 +318,30 @@
                     <button class="btn btn-primary btn-block" onclick="handleUploadTheoreticalStock()"><i class="fa-solid fa-upload"></i> XÁC NHẬN NẠP DỮ LIỆU</button>
                 </div>
             </div>
+            <div class="card">
+    <h3 style="font-size:14px; margin-bottom:10px;"><i class="fa-solid fa-keyboard"></i> Nhập Tay Tồn Lý Thuyết (Bổ sung hàng phát sinh)</h3>
+    <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">Dùng khi có ít mã chưa có trong file Excel. Mã đã tồn tại sẽ tự động bị bỏ qua.</p>
+    <div class="table-wrap" style="max-height:250px;">
+        <table id="manualStockTable">
+            <thead>
+                <tr>
+                    <th style="width:30px;">STT</th>
+                    <th>MÃ HÀNG</th>
+                    <th>TÊN HÀNG</th>
+                    <th style="width:60px;">ĐVT</th>
+                    <th style="width:90px;">TỒN KHO</th>
+                    <th style="width:110px;">ĐƠN GIÁ</th>
+                    <th style="width:32px;">XÓA</th>
+                </tr>
+            </thead>
+            <tbody id="manualStockBody"></tbody>
+        </table>
+    </div>
+    <div style="display:grid; grid-template-columns: 1fr 2fr; gap:8px; margin-top:10px;">
+        <button class="btn btn-secondary" onclick="addManualStockRow()"><i class="fa-solid fa-plus"></i> Thêm Dòng</button>
+        <button class="btn btn-success" onclick="handleSaveManualStock()"><i class="fa-solid fa-cloud-arrow-up"></i> LƯU VÀO TỒN LÝ THUYẾT</button>
+    </div>
+</div>
 
             <!-- TAB 3: QUẢN LÝ VÙNG & CỘT ĐÃ IN / CHƯA IN -->
             <div id="tabZones" class="admin-tab-content" style="display:none;">
@@ -418,6 +443,28 @@
                     </div>
                 </div>
             </div>
+
+            <div id="tabLog" class="admin-tab-content" style="display:none;">
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h3 style="font-size:14px;"><i class="fa-solid fa-clipboard-list"></i> Lịch Sử Thao Tác (200 bản ghi gần nhất)</h3>
+            <button class="btn btn-secondary" style="min-height:30px;padding:4px 10px;font-size:12px;" onclick="loadAuditLog()"><i class="fa-solid fa-arrows-rotate"></i> Làm mới</button>
+        </div>
+        <div class="table-wrap" style="max-height:450px;">
+            <table>
+                <thead><tr>
+                    <th style="width:140px;">THỜI GIAN</th>
+                    <th style="width:110px;">USER</th>
+                    <th style="width:130px;">HÀNH ĐỘNG</th>
+                    <th style="width:120px;">MÃ KỲ</th>
+                    <th style="width:90px;">MÃ VÙNG</th>
+                    <th>CHI TIẾT</th>
+                </tr></thead>
+                <tbody id="auditLogBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
         </section>
 
     </main>
@@ -468,9 +515,12 @@
         <div class="modal-content" style="max-width:750px;">
             <div class="modal-header"><span id="zoneEditTitle">Chi Tiết Vùng</span><i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('zoneEditModal')"></i></div>
             <div class="modal-body">
-                <div class="input-row" id="adminZoneRenameGroup" style="margin-bottom:10px;">
-                    <div class="form-group"><label>ĐỔI TÊN MÃ VÙNG</label><input type="text" id="editZoneNewName" class="form-control"></div>
-                </div>
+            <div class="input-row" id="adminZoneRenameGroup" style="margin-bottom:10px;">
+            <div class="form-group"><label>ĐỔI TÊN MÃ VÙNG</label><input type="text" id="editZoneNewName" class="form-control"></div>
+            <div class="form-group"><label>🔍 TÌM KIẾM MÃ / TÊN HÀNG</label>
+                <input type="text" id="zoneDetailSearch" class="form-control" placeholder="Gõ mã hoặc tên để lọc..." oninput="filterZoneDetail(this.value)">
+            </div>
+        </div>
                 <div class="table-wrap" style="max-height:280px;">
                     <table id="zoneDetailTable">
                         <thead><tr><th>STT</th><th>MÃ HÀNG</th><th>TÊN HÀNG</th><th>ĐVT</th><th>SL</th><th>XÓA</th></tr></thead>
@@ -478,10 +528,11 @@
                     </table>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="printControllerSheet()"><i class="fa-solid fa-print"></i> In Phiếu Controller</button>
-                <button class="btn btn-primary" onclick="handleAdminSaveZone()"><i class="fa-solid fa-floppy-disk"></i> Lưu Thay Đổi</button>
-                <button class="btn btn-secondary" onclick="closeModal('zoneEditModal')">Đóng</button>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="printControllerSheet()"><i class="fa-solid fa-print"></i> In Phiếu Controller</button>
+                    <button class="btn btn-danger" onclick="handleAdminDeleteZone()"><i class="fa-solid fa-trash"></i> Xóa Cả Vùng</button>
+                    <button class="btn btn-primary" onclick="handleAdminSaveZone()"><i class="fa-solid fa-floppy-disk"></i> Lưu Thay Đổi</button>
+                    <button class="btn btn-secondary" onclick="closeModal('zoneEditModal')">Đóng</button>
             </div>
         </div>
     </div>
@@ -1121,6 +1172,48 @@ function renderLiveTable() {
             reader.readAsArrayBuffer(file);
         }
 
+        let MANUAL_STOCK_ROWS = [];
+
+function addManualStockRow() {
+    MANUAL_STOCK_ROWS.push({ maHang: '', tenHang: '', dvt: '', slTon: 0, donGia: 0 });
+    renderManualStockTable();
+}
+
+function renderManualStockTable() {
+    const tbody = document.getElementById('manualStockBody');
+    tbody.innerHTML = "";
+    MANUAL_STOCK_ROWS.forEach((r, idx) => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${idx + 1}</td>
+            <td><input type="text" class="form-control" style="padding:4px;" value="${r.maHang}" onchange="MANUAL_STOCK_ROWS[${idx}].maHang=this.value"></td>
+            <td><input type="text" class="form-control" style="padding:4px;" value="${r.tenHang}" onchange="MANUAL_STOCK_ROWS[${idx}].tenHang=this.value"></td>
+            <td><input type="text" class="form-control" style="padding:4px;" value="${r.dvt}" onchange="MANUAL_STOCK_ROWS[${idx}].dvt=this.value"></td>
+            <td><input type="number" class="form-control" style="padding:4px;" value="${r.slTon}" onchange="MANUAL_STOCK_ROWS[${idx}].slTon=parseFloat(this.value)||0"></td>
+            <td><input type="number" class="form-control" style="padding:4px;" value="${r.donGia}" onchange="MANUAL_STOCK_ROWS[${idx}].donGia=parseFloat(this.value)||0"></td>
+            <td><i class="fa-solid fa-trash" style="color:var(--danger);cursor:pointer;" onclick="MANUAL_STOCK_ROWS.splice(${idx},1);renderManualStockTable();"></i></td>
+        `;
+    });
+}
+
+async function handleSaveManualStock() {
+    const auditId = document.getElementById('uploadAuditSelect').value;
+    if (!auditId) return showToast("⚠️ Chưa chọn Kỳ Kiểm Kê!");
+    const validRows = MANUAL_STOCK_ROWS.filter(r => r.maHang && r.maHang.trim());
+    if (validRows.length === 0) return showToast("⚠️ Chưa có mã hàng hợp lệ!");
+    showLoading("Đang lưu...");
+    try {
+        const res = await fetch(CURRENT_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'appendTheoreticalStock', auditId, items: validRows })
+        });
+        const data = await res.json();
+        hideLoading();
+        showToast(data.message);
+        if (data.success) { MANUAL_STOCK_ROWS = []; renderManualStockTable(); }
+    } catch (e) { hideLoading(); showToast("Lỗi kết nối!"); }
+}
+
         // QUẢN LÝ VÙNG VỚI CỘT TRẠNG THÁI ĐÃ IN / CHƯA IN
         async function loadAdminSavedZones() {
             const auditId = document.getElementById('adminZoneAuditSelect').value;
@@ -1166,21 +1259,33 @@ function renderLiveTable() {
             }
         }
 
-        function renderZoneDetailRows() {
-            const tbody = document.getElementById('zoneDetailBody');
-            tbody.innerHTML = "";
-            activeAdminZoneItems.forEach((it, idx) => {
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>${idx + 1}</td>
-                    <td><input type="text" value="${it.maHang || ''}" class="form-control" style="padding:4px;" onchange="activeAdminZoneItems[${idx}].maHang=this.value"></td>
-                    <td><input type="text" value="${it.tenHang || ''}" class="form-control" style="padding:4px;" onchange="activeAdminZoneItems[${idx}].tenHang=this.value"></td>
-                    <td>${it.dvt || ''}</td>
-                    <td><input type="number" value="${it.sl || 0}" class="form-control" style="padding:4px;width:60px;" onchange="activeAdminZoneItems[${idx}].sl=this.value"></td>
-                    <td><i class="fa-solid fa-trash" style="color:var(--danger);cursor:pointer;" onclick="activeAdminZoneItems.splice(${idx},1);renderZoneDetailRows();"></i></td>
-                `;
-            });
+let zoneDetailFilterKeyword = "";
+
+function renderZoneDetailRows() {
+    const tbody = document.getElementById('zoneDetailBody');
+    tbody.innerHTML = "";
+    const kw = zoneDetailFilterKeyword.toLowerCase().trim();
+
+    activeAdminZoneItems.forEach((it, idx) => {
+        if (kw) {
+            const ma = String(it.maHang || '').toLowerCase();
+            const ten = String(it.tenHang || '').toLowerCase();
+            if (!ma.includes(kw) && !ten.includes(kw)) return;   // giữ index gốc
         }
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${idx + 1}</td>
+            <td><input type="text" value="${it.maHang || ''}" class="form-control" style="padding:4px;" onchange="activeAdminZoneItems[${idx}].maHang=this.value"></td>
+            <td><input type="text" value="${it.tenHang || ''}" class="form-control" style="padding:4px;" onchange="activeAdminZoneItems[${idx}].tenHang=this.value"></td>
+            <td>${it.dvt || ''}</td>
+            <td><input type="number" value="${it.sl || 0}" class="form-control" style="padding:4px;width:60px;" onchange="activeAdminZoneItems[${idx}].sl=this.value"></td>
+            <td><i class="fa-solid fa-trash" style="color:var(--danger);cursor:pointer;" onclick="deleteZoneDetailItem(${idx})"></i></td>
+        `;
+    });
+}
+
+function filterZoneDetail(val) { zoneDetailFilterKeyword = val; renderZoneDetailRows(); }
+function deleteZoneDetailItem(idx) { activeAdminZoneItems.splice(idx, 1); renderZoneDetailRows(); }
 
         async function handleAdminSaveZone() {
             const auditId = document.getElementById('adminZoneAuditSelect').value;
@@ -1196,6 +1301,22 @@ function renderLiveTable() {
             closeModal('zoneEditModal');
             loadAdminSavedZones();
         }
+
+        async function handleAdminDeleteZone() {
+    const auditId = document.getElementById('adminZoneAuditSelect').value;
+    if (!confirm(`⚠️ XÓA TOÀN BỘ VÙNG "${currentEditingZone}"?\nThao tác này không thể hoàn tác!`)) return;
+    showLoading("Đang xóa vùng...");
+    try {
+        const res = await fetch(CURRENT_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'deleteZone', auditId, zoneId: currentEditingZone, adminUser: CURRENT_USER.fullName })
+        });
+        const data = await res.json();
+        hideLoading();
+        showToast(data.message);
+        if (data.success) { closeModal('zoneEditModal'); loadAdminSavedZones(); }
+    } catch (e) { hideLoading(); showToast("Lỗi kết nối!"); }
+}
 
         // IN PHIẾU CONTROLLER ĐÚNG CHUẨN KẾ HOẠCH & FONT CHỮ VÙNG GẤP ĐÔI
         async function printControllerSheet() {
@@ -1602,6 +1723,63 @@ function renderLiveTable() {
             }
         }
 
+        function exportPreliminaryExcel() {
+    if (!currentPreliminaryData || currentPreliminaryData.length === 0) {
+        return showToast("⚠️ Vui lòng bấm [CHẠY BÁO CÁO] trước khi xuất file!");
+    }
+    const auditId = document.getElementById('reportAuditSelect').value || 'KIEM_KE';
+
+    const wsData = [];
+    wsData.push([
+        "STT", "Mã hàng", "Tên hàng", "ĐVT", "Người nhập",
+        "SL tồn lý thuyết", "SL kiểm kê", "SL chênh lệch",
+        "Đơn giá", "Giá trị chênh lệch", "Vùng kiểm kê", "Loại hàng"
+    ]);
+
+    let tongLech = 0, tongGiaTriLech = 0, tongSlTon = 0, tongSlThuc = 0;
+
+    currentPreliminaryData.forEach((r, idx) => {
+        const donGia   = parseFloat(r.donGia) || 0;
+        const slTon    = parseFloat(r.slTon) || 0;
+        const slThucTe = parseFloat(r.slThucTe) || 0;
+        const slLech   = slThucTe - slTon;
+        const giaTriLech = slLech * donGia;
+
+        tongSlTon   += slTon;
+        tongSlThuc  += slThucTe;
+        tongLech    += slLech;
+        tongGiaTriLech += giaTriLech;
+
+        wsData.push([
+            idx + 1,
+            r.maHang || '',
+            r.tenHang || '',
+            r.dvt || '',
+            (r.staffs && r.staffs.length > 0) ? r.staffs.join(', ') : '',
+            slTon,
+            slThucTe,
+            slLech,
+            donGia,
+            giaTriLech,
+            (r.zones && r.zones.length > 0) ? r.zones.join(', ') : '',
+            r.isEmergent ? 'HÀNG PHÁT SINH (Không có tồn LT)' : 'DANH MỤC'
+        ]);
+    });
+
+    wsData.push(["", "TỔNG CỘNG", "", "", "", tongSlTon, tongSlThuc, tongLech, "", tongGiaTriLech, "", ""]);
+
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [
+        { wch: 5 }, { wch: 15 }, { wch: 35 }, { wch: 8 }, { wch: 22 },
+        { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 16 },
+        { wch: 25 }, { wch: 26 }
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "BaoCaoSoBo");
+    XLSX.writeFile(wb, `BaoCaoSoBo_${auditId}_${new Date().getTime()}.xlsx`);
+    showToast("✅ Đã xuất file Excel báo cáo sơ bộ!");
+}
+
         async function saveEmergentPrices() {
             const auditId = document.getElementById('reportAuditSelect').value;
             const priceMap = {};
@@ -1643,6 +1821,34 @@ function renderLiveTable() {
             showToast(data.message);
             if (data.success) loadAdminInitialData();
         }
+        async function loadAuditLog() {
+    showLoading("Nạp lịch sử...");
+    try {
+        const res = await fetch(`${CURRENT_SCRIPT_URL}?action=getAuditLog&limit=200`);
+        const data = await res.json();
+        hideLoading();
+        const tbody = document.getElementById('auditLogBody');
+        tbody.innerHTML = "";
+        (data.data || []).forEach(r => {
+            const colorMap = {
+                'DELETE_ZONE': 'var(--danger)',
+                'UPDATE_ZONE': 'var(--warning)',
+                'FINALIZE_AUDIT': 'var(--purple)',
+                'UPLOAD_STOCK': 'var(--primary)',
+                'APPEND_STOCK': 'var(--success)'
+            };
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td style="font-size:11px;">${r.time}</td>
+                <td><strong>${r.user}</strong></td>
+                <td><span style="color:${colorMap[r.action]||'var(--text)'}; font-weight:bold; font-size:11px;">${r.action}</span></td>
+                <td>${r.auditId}</td>
+                <td>${r.zoneId}</td>
+                <td style="font-size:12px;">${r.detail}</td>
+            `;
+        });
+    } catch (e) { hideLoading(); showToast("Lỗi tải log!"); }
+}
 
         // ==================== BỘ QUÉT CAMERA & TIỆN ÍCH ====================
         function toggleCameraUI() {
