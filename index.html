@@ -1238,26 +1238,33 @@ async function handleSaveManualStock() {
             });
         }
 
-        async function openAdminZoneDetail(auditId, zoneId) {
-            currentEditingZone = zoneId;
-            showLoading("Nạp chi tiết vùng...");
-            try {
-                const res = await fetch(`${CURRENT_SCRIPT_URL}?action=getZoneDetail&auditId=${encodeURIComponent(auditId)}&zoneId=${encodeURIComponent(zoneId)}`);
-                const data = await res.json();
-                hideLoading();
+async function openAdminZoneDetail(auditId, zoneId) {
+    currentEditingZone = zoneId;
+    showLoading("Nạp chi tiết vùng...");
+    try {
+        const res = await fetch(`${CURRENT_SCRIPT_URL}?action=getZoneDetail&auditId=${encodeURIComponent(auditId)}&zoneId=${encodeURIComponent(zoneId)}`);
+        const data = await res.json();
+        hideLoading();
 
-                activeAdminZoneItems = data.data || [];
-                currentEditingZoneStaff = activeAdminZoneItems.length > 0 ? activeAdminZoneItems[0].staff : CURRENT_USER.fullName;
-                document.getElementById('zoneEditTitle').innerText = `Chi Tiết Vùng: ${zoneId}`;
-                document.getElementById('editZoneNewName').value = zoneId;
+        activeAdminZoneItems = data.data || [];
+        currentEditingZoneStaff = activeAdminZoneItems.length > 0 ? activeAdminZoneItems[0].staff : CURRENT_USER.fullName;
+        document.getElementById('zoneEditTitle').innerText = `Chi Tiết Vùng: ${zoneId}`;
+        document.getElementById('editZoneNewName').value = zoneId;
 
-                renderZoneDetailRows();
-                document.getElementById('zoneEditModal').style.display = 'flex';
-            } catch (e) {
-                hideLoading();
-                showToast("Lỗi tải chi tiết vùng!");
-            }
-        }
+        // ============ FIX VƯỚNG 1: RESET FILTER ============
+        // Phải reset TRƯỚC khi gọi renderZoneDetailRows() để bảng hiện đủ dữ liệu
+        zoneDetailFilterKeyword = "";
+        const searchEl = document.getElementById('zoneDetailSearch');
+        if (searchEl) searchEl.value = "";
+        // ===================================================
+
+        renderZoneDetailRows();
+        document.getElementById('zoneEditModal').style.display = 'flex';
+    } catch (e) {
+        hideLoading();
+        showToast("Lỗi tải chi tiết vùng!");
+    }
+}
 
 let zoneDetailFilterKeyword = "";
 
