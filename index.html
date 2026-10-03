@@ -306,42 +306,48 @@
                 </div>
             </div>
 
-            <!-- TAB 2: UPLOAD TỒN LÝ THUYẾT -->
-            <div id="tabUpload" class="admin-tab-content" style="display:none;">
-                <div class="card">
-                    <h3 style="font-size:14px; margin-bottom:10px;"><i class="fa-solid fa-file-excel"></i> Nạp File Tồn Kho Lý Thuyết</h3>
-                    <div class="form-group"><label>CHỌN KỲ CẦN NẠP TỒN</label><select id="uploadAuditSelect" class="form-control"></select></div>
-                    <div class="form-group">
-                        <label>CHỌN FILE EXCEL / CSV (Chứa: Mã hàng, Tên hàng, ĐVT, Tồn kho, Đơn giá...)</label>
-                        <input type="file" id="theoreticalFileInput" class="form-control" accept=".xlsx, .xls, .csv">
-                    </div>
-                    <button class="btn btn-primary btn-block" onclick="handleUploadTheoreticalStock()"><i class="fa-solid fa-upload"></i> XÁC NHẬN NẠP DỮ LIỆU</button>
-                </div>
-            </div>
-            <div class="card">
-    <h3 style="font-size:14px; margin-bottom:10px;"><i class="fa-solid fa-keyboard"></i> Nhập Tay Tồn Lý Thuyết (Bổ sung hàng phát sinh)</h3>
-    <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">Dùng khi có ít mã chưa có trong file Excel. Mã đã tồn tại sẽ tự động bị bỏ qua.</p>
-    <div class="table-wrap" style="max-height:250px;">
-        <table id="manualStockTable">
-            <thead>
-                <tr>
-                    <th style="width:30px;">STT</th>
-                    <th>MÃ HÀNG</th>
-                    <th>TÊN HÀNG</th>
-                    <th style="width:60px;">ĐVT</th>
-                    <th style="width:90px;">TỒN KHO</th>
-                    <th style="width:110px;">ĐƠN GIÁ</th>
-                    <th style="width:32px;">XÓA</th>
-                </tr>
-            </thead>
-            <tbody id="manualStockBody"></tbody>
-        </table>
+<!-- TAB 2: UPLOAD TỒN LÝ THUYẾT -->
+<div id="tabUpload" class="admin-tab-content" style="display:none;">
+
+    <!-- Card 1: Nạp file Excel -->
+    <div class="card">
+        <h3 style="font-size:14px; margin-bottom:10px;"><i class="fa-solid fa-file-excel"></i> Nạp File Tồn Kho Lý Thuyết</h3>
+        <div class="form-group"><label>CHỌN KỲ CẦN NẠP TỒN</label><select id="uploadAuditSelect" class="form-control"></select></div>
+        <div class="form-group">
+            <label>CHỌN FILE EXCEL / CSV (Chứa: Mã hàng, Tên hàng, ĐVT, Tồn kho, Đơn giá...)</label>
+            <input type="file" id="theoreticalFileInput" class="form-control" accept=".xlsx, .xls, .csv">
+        </div>
+        <button class="btn btn-primary btn-block" onclick="handleUploadTheoreticalStock()"><i class="fa-solid fa-upload"></i> XÁC NHẬN NẠP DỮ LIỆU</button>
     </div>
-    <div style="display:grid; grid-template-columns: 1fr 2fr; gap:8px; margin-top:10px;">
-        <button class="btn btn-secondary" onclick="addManualStockRow()"><i class="fa-solid fa-plus"></i> Thêm Dòng</button>
-        <button class="btn btn-success" onclick="handleSaveManualStock()"><i class="fa-solid fa-cloud-arrow-up"></i> LƯU VÀO TỒN LÝ THUYẾT</button>
+
+    <!-- Card 2: Nhập tay — ĐẶT BÊN TRONG tabUpload -->
+    <div class="card">
+        <h3 style="font-size:14px; margin-bottom:10px;"><i class="fa-solid fa-keyboard"></i> Nhập Tay Tồn Lý Thuyết (Bổ sung hàng phát sinh)</h3>
+        <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">Dùng khi có ít mã chưa có trong file Excel. Mã đã tồn tại sẽ tự động bị bỏ qua.</p>
+        <div class="table-wrap" style="max-height:250px;">
+            <table id="manualStockTable">
+                <thead>
+                    <tr>
+                        <th style="width:30px;">STT</th>
+                        <th>MÃ HÀNG</th>
+                        <th>TÊN HÀNG</th>
+                        <th style="width:60px;">ĐVT</th>
+                        <th style="width:90px;">TỒN KHO</th>
+                        <th style="width:110px;">ĐƠN GIÁ</th>
+                        <th style="width:32px;">XÓA</th>
+                    </tr>
+                </thead>
+                <tbody id="manualStockBody"></tbody>
+            </table>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 2fr; gap:8px; margin-top:10px;">
+            <button class="btn btn-secondary" onclick="addManualStockRow()"><i class="fa-solid fa-plus"></i> Thêm Dòng</button>
+            <button class="btn btn-success" onclick="handleSaveManualStock()"><i class="fa-solid fa-cloud-arrow-up"></i> LƯU VÀO TỒN LÝ THUYẾT</button>
+        </div>
     </div>
+
 </div>
+<!-- ĐÓNG tabUpload Ở ĐÂY — sau khi cả 2 card đã nằm bên trong -->
 
             <!-- TAB 3: QUẢN LÝ VÙNG & CỘT ĐÃ IN / CHƯA IN -->
             <div id="tabZones" class="admin-tab-content" style="display:none;">
